@@ -22,25 +22,7 @@ This means that we have to compile `C++` code, greatly reducing portability of t
  > Compiling on very old systems generally means the generated output works on both old and newer machines, due to backward compatibility often present in newer systems.
 
 
-### Building Dependencies
-For building dependencies, we assume we build in a directory pointed to by `$BUILDDIR`.
-First, we prepare the Arrow implementation with Java Native Interface bridge (C++ side):
-```bash
-cd $BUILDDIR
-git clone https://github.com/Sebastiaan-Alvarez-Rodriguez/arrow.git -b OAP-1852-DAS5
-cd $BUILDDIR/arrow/cpp
-cmake . -DARROW_PARQUET=ON -DARROW_DATASET=ON -DARROW_JNI=ON -DARROW_ORC=ON -DARROW_CSV=ON
-sudo make install -j12
-```
-Next, we prepare the Arrow implementation with Java Native Interface bridge (Java side):
-```bash
-cd $BUILDDIR/arrow/java/
-mvn clean install -P arrow-jni -pl format,memory,vector -am -Darrow.cpp.build.dir=$BUILDIR/arrow/cpp/build/release -Dmaven.test.skip=true -Dcheckstyle.skip -Dos.detected.name=linux -Dos.detected.arch=x86_64 -Dos.detected.classifier=linux-x86_64
-```
- > If you are compile on other architectures than Linux, manually change the Maven OS identifiers yourself
-
 ### Building Modules
-*Once* the dependencies have been built, we can start building our modules.
 There exist 3 modules:
  1. [`arrow-spark-connector`](/arrow-spark-connector) is the main module. It contains our connector.
  2. [`arrow-spark-benchamrk`](/arrow-spark-benchmark) is a secondary module. It provides us a commandline interface which allows us to benchmark our connector.

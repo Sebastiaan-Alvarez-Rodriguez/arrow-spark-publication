@@ -8,6 +8,10 @@ buildscript {
 }
 apply plugin: 'com.github.johnrengelman.shadow'
 
+
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+
 def arrowJavaDir = rootProject.getProjectDir().getAbsolutePath() + "/arrow/java"
 def arrowCppDir = rootProject.getProjectDir().getAbsolutePath() + "/arrow/cpp"
 def arrowCompileNumCPUs = 4
@@ -70,9 +74,13 @@ allprojects {
     }
 
     task buildArrow(type: Exec, dependsOn: [buildArrowCPP, buildArrowJavaDeps]) {
-        println "Installing Arrow Dataset"
+        OperatingSystem os = DefaultNativePlatform.currentOperatingSystem
+        Architecture arch = DefaultNativePlatform.currentArchitecture
+        def os_name = os.getName()
+        def arch_name = arch.getName()
+        println "Installing Arrow Dataset for os:"+os_name+" and arch:"+arch_name
         workingDir arrowJavaDir +"/dataset"
-        commandLine "mvn", "package", "-P", "arrow-jni", "-am", "-Darrow.cpp.build.dir=../../cpp/build/latest", "-Dmaven.test.skip=true", "-Dcheckstyle.skip", "-Dos.detected.name=linux", "-Dos.detected.arch=x86_64", "-Dos.detected.classifier=linux-x86_64"
+        commandLine "mvn", "package", "-P", "arrow-jni", "-am", "-Darrow.cpp.build.dir=../../cpp/build/latest", "-Dmaven.test.skip=true", "-Dcheckstyle.skip", "-Dos.detected.name="+os_name, "-Dos.detected.arch="+arch_name, "-Dos.detected.classifier=linux-x86_64"
         outputs.file arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar"
         outputs.upToDateWhen {
             file(arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar").exists()
