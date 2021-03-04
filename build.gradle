@@ -16,12 +16,27 @@ allprojects {
     group 'org.arrowspark'
     version '1.0'
 
+    configurations {
+        clean {
+            delete arrowCppDir + "/Makefile"
+            delete arrowCppDir + "/build/release/libarrow_dataset_jni.so"
+
+            delete arrowJavaDir + "/format/target/arrow-format-3.0.0.jar"
+            delete arrowJavaDir + "/memory/memory-core/target/arrow-memory-core-3.0.0.jar"
+            delete arrowJavaDir + "/memory/memory-netty/target/arrow-memory-netty-3.0.0.jar"
+            delete arrowJavaDir + "/vector/target/arrow-vector-3.0.0.jar"
+            delete arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar"
+        }
+    }
     // Builds and installs the Arrow C++ libraries+headers, which we need for the JNI bridge
     task buildArrowCPPCMake(type: Exec) {
         println "Generating Makefile for Arrow CPP using CMake"
         workingDir arrowCppDir
         commandLine "cmake", ".", "-DARROW_PARQUET=ON", "-DARROW_DATASET=ON", "-DARROW_JNI=ON", "-DARROW_ORC=ON", "-DARROW_CSV=ON"
-        outputs.file arrowCppDir + "Makefile"
+        outputs.file arrowCppDir + "/Makefile"
+        outputs.upToDateWhen {
+            file(arrowCppDir + "/Makefile").exists()
+        }
     }
 
     // Builds and installs the Arrow C++ libraries+headers, which we need for the JNI bridge
@@ -30,6 +45,9 @@ allprojects {
         workingDir arrowCppDir
         commandLine "make", "preinstall", "-j", arrowCompileNumCPUs
         outputs.file arrowCppDir + "/build/release/libarrow_dataset_jni.so"
+        outputs.upToDateWhen {
+            file(arrowCppDir + "/build/release/libarrow_dataset_jni.so").exists()
+        }
     }
 
     // Builds and installs the Arrow Java libraries, containing the JNI bridge
@@ -43,6 +61,12 @@ allprojects {
             arrowJavaDir + "/memory/memory-netty/target/arrow-memory-netty-3.0.0.jar"
             arrowJavaDir + "/vector/target/arrow-vector-3.0.0.jar"
         }
+        outputs.upToDateWhen {
+            file(arrowJavaDir + "/format/target/arrow-format-3.0.0.jar").exists()
+            file(arrowJavaDir + "/memory/memory-core/target/arrow-memory-core-3.0.0.jar").exists()
+            file(arrowJavaDir + "/memory/memory-netty/target/arrow-memory-netty-3.0.0.jar").exists()
+            file(arrowJavaDir + "/vector/target/arrow-vector-3.0.0.jar").exists()
+        }
     }
 
     task buildArrow(type: Exec, dependsOn: [buildArrowCPP, buildArrowJavaDeps]) {
@@ -50,6 +74,9 @@ allprojects {
         workingDir arrowJavaDir +"/dataset"
         commandLine "mvn", "package", "-P", "arrow-jni", "-am", "-Darrow.cpp.build.dir=../../cpp/build/latest", "-Dmaven.test.skip=true", "-Dcheckstyle.skip", "-Dos.detected.name=linux", "-Dos.detected.arch=x86_64", "-Dos.detected.classifier=linux-x86_64"
         outputs.file arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar"
+        outputs.upToDateWhen {
+            file(arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar").exists()
+        }
     }
 }
 
