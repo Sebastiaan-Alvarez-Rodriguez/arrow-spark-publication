@@ -1,0 +1,99 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:6.1.0'
+    }
+}
+apply plugin: 'com.github.johnrengelman.shadow'
+
+dependencies {
+    // Commandline arguments
+    shipLight 'info.picocli:picocli:4.5.1'
+
+    // Other project dependencies
+    shipLight 'org.apache.commons:commons-csv:1.8'
+
+    // Connector project we provide benchmarks for
+    implementation project(':arrow-spark-connector')
+}
+
+//////////// Jarfile Generation Section ////////////
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+/** Builds a full jar JAR, with all dependencies contained */
+shadowJar {
+    zip64(true)
+}
+
+/** Builds a lightweight type JAR. You are responsible to provide all dependencies listed in the manifest `Class-Path` entry */
+task lightJar(type: ShadowJar) {
+    zip64(true)
+
+    dependencies {
+        exclude(dependency('org.scala-lang:scala-library:2.12.10'))
+        exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
+    }
+
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'Main-Class': 'org.arrowspark.benchmark.Benchmark',
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
+        )
+    }
+    archiveClassifier.set('light')
+    from sourceSets.main.output
+    from sourceSets.test.output
+    from project(":arrow-spark-connector").sourceSets.main.output
+    from project(":arrow-spark-connector").sourceSets.test.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    configurations = [ project.configurations.shipLight ]
+    manifest.inheritFrom project.tasks.jar.manifest
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+//lightJar.dependsOn(project(':arrow-spark-connector').task('lightJar')) // Creates error in lightJar task of connector
+
+/** Builds an essentials-only type JAR. You are responsible to provide all dependencies listed in the manifest `Class-Path` entry */
+task essentialJar(type: ShadowJar) {
+    zip64(true)
+
+    dependencies {
+        exclude(dependency('org.scala-lang:scala-library:2.12.10'))
+        exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
+    }
+
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'Main-Class': 'org.arrowspark.benchmark.Benchmark',
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar'
+        )
+    }
+    archiveClassifier.set('essential')
+    from sourceSets.main.output
+    from sourceSets.test.output
+    from project(":arrow-spark-connector").sourceSets.main.output
+    from project(":arrow-spark-connector").sourceSets.test.output
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    configurations = [ project.configurations.shipEssential ]
+    manifest.inheritFrom project.tasks.jar.manifest
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
+jar {
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'Main-Class': 'org.arrowspark.benchmark.Benchmark'
+        )
+    }
+}
+
+
+// Some Java sources depend on Scala sources. Java sources are compiled first, so it cannot find compiled Scala classes and that produces errors.
+// Using below 4 lines, we set Java files to compile in the Scala-task.
+sourceSets.main.scala.srcDir "src/main/java"
+sourceSets.main.java.srcDirs = []

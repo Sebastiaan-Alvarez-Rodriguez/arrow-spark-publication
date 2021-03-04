@@ -1,0 +1,19 @@
+
+dependencies {
+    // Use Scalatest for testing our library
+    shipFull group: 'junit', name: 'junit', version: '4.12'
+    shipFull 'org.scalatest:scalatest_2.12:3.0.4'
+    // Need scala-xml at test runtime
+    runtimeOnly 'org.scala-lang.modules:scala-xml_2.12:1.2.0'
+
+    shipLight 'org.apache.parquet:parquet-avro:1.8.2'
+
+
+    // Connector project we provide benchmarks for
+    implementation project(':arrow-spark-connector')
+}
+
+// Some Java sources depend on Scala sources. Java sources are compiled first, so it cannot find compiled Scala classes and that produces errors.
+// Using below 4 lines, we set Java files to compile in the Scala-task.
+sourceSets.test.scala.srcDir "src/test/java"
+sourceSets.test.java.srcDirs = []

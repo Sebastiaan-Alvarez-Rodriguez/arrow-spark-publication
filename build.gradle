@@ -1,0 +1,119 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:6.1.0'
+    }
+}
+apply plugin: 'com.github.johnrengelman.shadow'
+
+def arrowJavaDir = rootProject.getProjectDir().getAbsolutePath() + "/arrow/java"
+def arrowCppDir = rootProject.getProjectDir().getAbsolutePath() + "/arrow/cpp"
+def arrowCompileNumCPUs = 4
+
+allprojects {
+    group 'org.arrowspark'
+    version '1.0'
+
+    // Builds and installs the Arrow C++ libraries+headers, which we need for the JNI bridge
+    task buildArrowCPPCMake(type: Exec) {
+        println "Generating Makefile for Arrow CPP using CMake"
+        workingDir arrowCppDir
+        commandLine "cmake", ".", "-DARROW_PARQUET=ON", "-DARROW_DATASET=ON", "-DARROW_JNI=ON", "-DARROW_ORC=ON", "-DARROW_CSV=ON"
+        outputs.file arrowCppDir + "Makefile"
+    }
+
+    // Builds and installs the Arrow C++ libraries+headers, which we need for the JNI bridge
+    task buildArrowCPP(type: Exec, dependsOn: buildArrowCPPCMake) {
+        println "Installing Arrow CPP libraries+headers"
+        workingDir arrowCppDir
+        commandLine "make", "preinstall", "-j", arrowCompileNumCPUs
+        outputs.file arrowCppDir + "/build/release/libarrow_dataset_jni.so"
+    }
+
+    // Builds and installs the Arrow Java libraries, containing the JNI bridge
+    task buildArrowJavaDeps(type: Exec, dependsOn: buildArrowCPP) {
+        println "Installing Arrow Format, Memory, Vector modules"
+        workingDir arrowJavaDir
+        commandLine "mvn", "package", "-P", "arrow-jni", "-pl", "format", "-pl", "memory", "-pl", "vector", "-am", "-Darrow.cpp.build.dir=../cpp/build/latest", "-Dmaven.test.skip=true", "-Dcheckstyle.skip"
+        outputs.files {
+            arrowJavaDir + "/format/target/arrow-format-3.0.0.jar"
+            arrowJavaDir + "/memory/memory-core/target/arrow-memory-core-3.0.0.jar"
+            arrowJavaDir + "/memory/memory-netty/target/arrow-memory-netty-3.0.0.jar"
+            arrowJavaDir + "/vector/target/arrow-vector-3.0.0.jar"
+        }
+    }
+
+    task buildArrow(type: Exec, dependsOn: [buildArrowCPP, buildArrowJavaDeps]) {
+        println "Installing Arrow Dataset"
+        workingDir arrowJavaDir +"/dataset"
+        commandLine "mvn", "package", "-P", "arrow-jni", "-am", "-Darrow.cpp.build.dir=../../cpp/build/latest", "-Dmaven.test.skip=true", "-Dcheckstyle.skip", "-Dos.detected.name=linux", "-Dos.detected.arch=x86_64", "-Dos.detected.classifier=linux-x86_64"
+        outputs.file arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar"
+    }
+}
+
+subprojects {
+    repositories {
+//        WARNING: Order matters! Top is searched first!
+//        Use The 3 lines below if you compiled arrow dependencies somewhere else, and want to compile against those now.
+//        Of course, you will have to provide an *absolute path* to where you have stored these jars on your filesystem.
+
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+
+    apply plugin: 'scala'
+
+    configurations {
+        shipEssential
+        shipLight.extendsFrom(shipEssential)
+        shipFull.extendsFrom(shipLight)
+
+        implementation.extendsFrom(shipFull)
+    }
+
+    dependencies {
+        // Use Scala 2.12 in our library project
+        shipFull 'org.scala-lang:scala-library:2.12.10'
+        shipFull 'org.scala-lang:scala-reflect:2.12.10'
+
+
+//      Repository libs for modified v3.0.0 bridge Arrow Dataset JNI
+        shipEssential files (
+            arrowJavaDir + "/dataset/target/arrow-dataset-3.0.0.jar",
+            arrowJavaDir + "/memory/memory-core/target/arrow-memory-core-3.0.0.jar",
+            arrowJavaDir + "/memory/memory-netty/target/arrow-memory-netty-3.0.0.jar",
+            arrowJavaDir + "/vector/target/arrow-vector-3.0.0.jar"
+        )
+
+
+        // Dependencies needed for Spark
+        shipFull('org.apache.spark:spark-core_2.12:3.0.1') {
+            exclude group: 'org.apache.arrow'
+        }
+        shipFull('org.apache.spark:spark-sql_2.12:3.0.1') {
+            exclude group: 'org.apache.arrow'
+        }
+
+        // Spark indirect dependencies
+        shipFull 'org.apache.avro:avro:1.8.2'
+        shipFull 'org.apache.hadoop:hadoop-common:2.7.4'
+
+        //Even though Spark provides this, we always crash using their version. Better to include it ourselves
+        shipEssential 'com.thoughtworks.paranamer:paranamer:2.8'
+
+        // Dependencies we need to write AVRO parquet files
+        // It is extremely important to skip adding transitive dependencies in this @aar notation.
+        // If we don't, we accidentally add more recent versions of org.apache.parquet:parquet* libraries.
+        // Spark is inherently incompatible with this, and has shown in the past it is really finicky with the exact versions:
+        // https://github.com/apache/arrow/issues/3491
+        // https://issues.apache.org/jira/browse/SPARK-25588
+        // Note: This is how they fixed it for Spark itself, too
+        shipLight('org.apache.parquet:parquet-avro:1.8.2') {
+            transitive = false
+        }
+
+    }
+}

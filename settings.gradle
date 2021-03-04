@@ -1,0 +1,5 @@
+rootProject.name = 'arrow-spark'
+
+include 'arrow-spark-connector'
+include 'arrow-spark-benchmark'
+include 'arrow-spark-test'
