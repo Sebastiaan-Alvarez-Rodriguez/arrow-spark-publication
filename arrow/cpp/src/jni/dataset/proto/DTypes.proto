@@ -1,0 +1,149 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+syntax = "proto2";
+package arrow.dataset.types;
+
+option java_package = "org.apache.arrow.dataset";
+option java_outer_classname = "DatasetTypes";
+option optimize_for = SPEED;
+
+message FieldNode {
+  // name of the field
+  optional string name = 1;
+}
+
+message FunctionNode {
+  optional string functionName = 1;
+  repeated TreeNode inArgs = 2;
+}
+
+message ComparisonNode {
+  optional string opName = 1;
+  optional TreeNode leftArg = 2;
+  optional TreeNode rightArg = 3;
+}
+
+message AndNode {
+  optional TreeNode leftArg = 2;
+  optional TreeNode rightArg = 3;
+}
+
+message OrNode {
+  optional TreeNode leftArg = 2;
+  optional TreeNode rightArg = 3;
+}
+
+message NotNode {
+  optional TreeNode args = 1;
+}
+
+message IsValidNode {
+  optional TreeNode args = 1;
+}
+
+message NullNode {
+}
+
+message IntNode {
+  optional int32 value = 1;
+}
+
+message FloatNode {
+  optional float value = 1;
+}
+
+message DoubleNode {
+  optional double value = 1;
+}
+
+message BooleanNode {
+  optional bool value = 1;
+}
+
+message LongNode {
+  optional int64 value = 1;
+}
+
+message StringNode {
+  optional bytes value = 1;
+}
+
+message BinaryNode {
+  optional bytes value = 1;
+}
+
+message DecimalNode {
+  optional string value = 1;
+  optional int32 precision = 2;
+  optional int32 scale = 3;
+}
+
+message InNode {
+  optional FieldNode field = 1;
+  optional IntConstants intValues = 2;
+  optional LongConstants longValues = 3;
+  optional StringConstants stringValues = 4;
+  optional BinaryConstants binaryValues = 5;
+}
+
+message IntConstants {
+  repeated IntNode intValues = 1;
+}
+
+message LongConstants {
+  repeated LongNode longValues = 1;
+}
+
+message StringConstants {
+  repeated StringNode stringValues = 1;
+}
+
+message BinaryConstants {
+  repeated BinaryNode binaryValues = 1;
+}
+
+message TreeNode {
+  optional FieldNode fieldNode = 1;
+  optional FunctionNode fnNode = 2;
+  optional ComparisonNode cpNode = 3;
+
+  // control expressions
+  optional AndNode andNode = 7;
+  optional OrNode orNode = 8;
+
+  optional NotNode notNode = 9;
+  optional IsValidNode isValidNode = 10;
+
+  // literals
+  optional NullNode nullNode = 11;
+  optional IntNode intNode = 12;
+  optional FloatNode floatNode = 13;
+  optional LongNode longNode = 14;
+  optional BooleanNode booleanNode = 15;
+  optional DoubleNode doubleNode = 16;
+  optional StringNode stringNode = 17;
+  optional BinaryNode binaryNode = 18;
+  optional DecimalNode decimalNode = 19;
+
+  // in expr
+  optional InNode inNode = 21;
+}
+
+message Condition {
+  optional TreeNode root = 1;
+}
